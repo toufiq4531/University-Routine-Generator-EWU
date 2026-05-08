@@ -408,7 +408,7 @@ function SectionRow({ section, secIdx, onChange, onRemove, canRemove }) {
         </div>
         <div style={{ display: "flex", gap: 5 }}>
           {section.meetings.length < 2 && (
-            <button onClick={addMeeting} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>+ meeting</button>
+            <button onClick={addMeeting} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, border: "0.5px solid var(--color-border-secondary)", background: "transparent", color: "var(--color-text-secondary)", cursor: "pointer" }}>+ Add Days</button>
           )}
           {canRemove && (
             <button onClick={onRemove} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, border: "0.5px solid #F09595", background: "transparent", color: "#A32D2D", cursor: "pointer" }}>remove</button>
