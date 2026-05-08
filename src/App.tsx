@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 const TIME_SLOTS = [
