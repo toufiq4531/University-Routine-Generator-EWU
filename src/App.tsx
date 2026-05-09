@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import html2canvas from "html2canvas";
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 const TIME_SLOTS = [
@@ -152,60 +153,39 @@ const LS_KEY = "routine_gen_v3";
 function loadState() { try { const d = localStorage.getItem(LS_KEY); return d ? JSON.parse(d) : null; } catch { return null; } }
 function saveState(s) { try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch { } }
 
-// ─── PNG EXPORT ──────────────────────────────────────────────────────────────
-async function downloadRoutineAsPng(routineEl, routineNum) {
-  // Build a self-contained HTML snapshot and open it, then use canvas
-  // We'll use a simpler approach: serialize the element to SVG via foreignObject
-  // Then draw on canvas
-  const { width, height } = routineEl.getBoundingClientRect();
-  const html = routineEl.outerHTML;
-  const styles = Array.from(document.styleSheets).map(ss => {
-    try { return Array.from(ss.cssRules).map(r => r.cssText).join("\n"); } catch { return ""; }
-  }).join("\n");
+// ─── EXPORT TO IMAGE ──────────────────────────────────────────────────────────
+async function downloadRoutineAsImage(element, routineNum) {
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-    <foreignObject width="${width}" height="${height}">
-      <div xmlns="http://www.w3.org/1999/xhtml">
-        <style>
-          body { margin:0; font-family: system-ui, sans-serif; background: #fff; color: #111; }
-          * { box-sizing: border-box; }
-          ${styles}
-        </style>
-        ${html}
-      </div>
-    </foreignObject>
-  </svg>`;
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert("Failed to create image. Please try again.");
+        return;
+      }
 
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement("canvas");
-    const dpr = window.devicePixelRatio || 2;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(img, 0, 0, width, height);
-    URL.revokeObjectURL(url);
-    canvas.toBlob(pngBlob => {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(pngBlob);
-      a.download = `routine-${routineNum}.png`;
-      a.click();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `routine-${routineNum}-${new Date().toISOString().split("T")[0]}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }, "image/png");
-  };
-  img.onerror = () => {
-    // fallback: just download SVG
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `routine-${routineNum}.svg`;
-    a.click();
-  };
-  img.src = url;
+  } catch (error) {
+    console.error("Download failed:", error);
+    alert("Failed to download routine. Please ensure all content is loaded and try again.");
+  }
 }
+
+
 
 // ─── FULL WEEKLY GRID ────────────────────────────────────────────────────────
 function WeeklyGrid({ sections, courseMap, courseColors }) {
@@ -284,8 +264,13 @@ function RoutineCard({ idx, sections, score, courseMap, courseColors }) {
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
-    await downloadRoutineAsPng(cardRef.current, idx + 1);
-    setTimeout(() => setDownloading(false), 1200);
+    try {
+      await downloadRoutineAsImage(cardRef.current, idx + 1);
+    } catch (error) {
+      console.error("Download error:", error);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -301,15 +286,48 @@ function RoutineCard({ idx, sections, score, courseMap, courseColors }) {
         <div style={{ fontWeight: 500, fontSize: 16, color: "var(--color-text-primary)" }}>
           Routine #{idx + 1}
         </div>
-        <button onClick={handleDownload} disabled={downloading} style={{
-          fontSize: 12, padding: "5px 14px", borderRadius: 7,
-          border: "0.5px solid var(--color-border-secondary)",
-          background: downloading ? "var(--color-background-secondary)" : "transparent",
-          color: downloading ? "var(--color-text-secondary)" : "var(--color-text-primary)",
-          cursor: downloading ? "not-allowed" : "pointer",
-          display: "flex", alignItems: "center", gap: 5,
-        }}>
-          {downloading ? "Saving…" : "⬇ Save as PNG"}
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          style={{
+            fontSize: 12,
+            padding: "6px 14px",
+            borderRadius: 6,
+            border: "none",
+            background: downloading ? "#B8B0E0" : "#6B5FD0",
+            color: "#fff",
+            fontWeight: 500,
+            cursor: downloading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            transition: "all 0.2s ease",
+            boxShadow: "0 2px 6px rgba(107, 95, 208, 0.3)",
+          }}
+          onMouseEnter={e => {
+            if (!downloading) {
+              e.currentTarget.style.background = "#5A4FBF";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(107, 95, 208, 0.5)";
+            }
+          }}
+          onMouseLeave={e => {
+            if (!downloading) {
+              e.currentTarget.style.background = "#6B5FD0";
+              e.currentTarget.style.boxShadow = "0 2px 6px rgba(107, 95, 208, 0.3)";
+            }
+          }}
+        >
+          {downloading ? (
+            <>
+              <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span>
+              Saving...
+            </>
+          ) : (
+            <>
+              <span>⬇</span>
+              Download Routine
+            </>
+          )}
         </button>
       </div>
 
@@ -557,13 +575,22 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "var(--font-sans)", minHeight: "100vh", background: "var(--color-background-tertiary)", color: "var(--color-text-primary)" }}>
-      <h2 className="sr-only">Routine Generator – University Class Scheduler</h2>
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <h2 className="sr-only">RoutineLab - Build Smarter Class Routines</h2>
 
       {/* Header */}
       <div style={{ background: "var(--color-background-primary)", borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 500 }}>Routine Generator</div>
-          <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>University class schedule planner</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 500 }}>RoutineLab</div>
+
+          </div>
+          <div style={{ background: "#7F77DD", color: "#fff", fontSize: 8, fontWeight: 600, padding: "2px 6px", borderRadius: 3, whiteSpace: "nowrap", lineHeight: 1.1 }}>Bhutuu</div>
         </div>
       </div>
 
@@ -585,7 +612,21 @@ export default function App() {
           ))}
           {error && <div style={{ color: "#A32D2D", fontSize: 12, background: "#FCEBEB", borderRadius: 6, padding: "8px 12px", marginBottom: 10, border: "1px solid #F7C1C1" }}>{error}</div>}
           <button onClick={handleGenerate} disabled={generating}
-            style={{ width: "100%", padding: 10, borderRadius: 8, border: "none", background: generating ? "#AFA9EC" : "#7F77DD", color: "#fff", fontWeight: 500, fontSize: 14, cursor: generating ? "not-allowed" : "pointer", marginTop: 4 }}>
+            style={{ width: "100%", padding: 10, borderRadius: 8, border: "none", background: generating ? "#9B92D9" : "#6B5FD0", color: "#fff", fontWeight: 600, fontSize: 14, cursor: generating ? "not-allowed" : "pointer", marginTop: 4, boxShadow: generating ? "0 2px 4px rgba(0,0,0,0.1)" : "0 4px 12px rgba(107, 95, 208, 0.4)", transition: "all 0.2s ease", letterSpacing: "0.3px" }}
+            onMouseEnter={e => {
+              if (!generating) {
+                e.currentTarget.style.background = "#5A4FBF";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(107, 95, 208, 0.6)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }
+            }}
+            onMouseLeave={e => {
+              if (!generating) {
+                e.currentTarget.style.background = "#6B5FD0";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(107, 95, 208, 0.4)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }
+            }}>
             {generating ? "Generating…" : "Generate Routines"}
           </button>
         </div>
@@ -655,6 +696,101 @@ export default function App() {
           ))}
         </div>
       </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          borderTop: "1px solid rgba(127,119,221,0.15)",
+          background: "rgba(255,255,255,0.75)",
+          backdropFilter: "blur(10px)",
+          padding: "10px 20px",
+          marginTop: "auto"
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#2A2A2A",
+              letterSpacing: "0.3px"
+            }}
+          >
+            <div
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#7F77DD",
+                boxShadow: "0 0 10px rgba(127,119,221,0.5)"
+              }}
+            />
+            RoutineLab by ToufiqBhai • v1.9
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14
+            }}
+          >
+            {[
+              {
+                label: "GitHub",
+                href: "https://github.com/toufiq4531"
+              },
+              {
+                label: "Portfolio",
+                href: "https://toufiq4531.github.io/MyPortfolio/"
+              },
+              {
+                label: "LinkedIn",
+                href: "https://www.linkedin.com/in/islam-mohammad-tofiqul/"
+              }
+            ].map(link => (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 11,
+                  color: "#666",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                  transition: "all 0.2s ease",
+                  position: "relative"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = "#7F77DD";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = "#666";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
+
+
   );
 }
