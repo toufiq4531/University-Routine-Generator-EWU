@@ -126,21 +126,21 @@ function filterRoutines(routines, filters) {
 // ─── SEED DATA ────────────────────────────────────────────────────────────────
 const SEED_COURSES = [
   {
-    id: "c1", code: "CSE 101",
+    id: "c1", code: "PHRM 7701",
     sections: [
       { id: "s1a", courseId: "c1", label: "A", meetings: [{ day: "Sun", slotId: "s1" }, { day: "Tue", slotId: "s1" }] },
       { id: "s1b", courseId: "c1", label: "B", meetings: [{ day: "Mon", slotId: "s3" }, { day: "Wed", slotId: "s3" }] },
     ]
   },
   {
-    id: "c2", code: "MAT 201",
+    id: "c2", code: "PHRM 7702",
     sections: [
       { id: "s2a", courseId: "c2", label: "A", meetings: [{ day: "Sun", slotId: "s2" }, { day: "Tue", slotId: "s2" }] },
       { id: "s2b", courseId: "c2", label: "B", meetings: [{ day: "Mon", slotId: "s4" }, { day: "Wed", slotId: "s4" }] },
     ]
   },
   {
-    id: "c3", code: "ENG 110",
+    id: "c3", code: "PHRM 7703",
     sections: [
       { id: "s3a", courseId: "c3", label: "A", meetings: [{ day: "Sun", slotId: "s3" }] },
       { id: "s3b", courseId: "c3", label: "B", meetings: [{ day: "Thu", slotId: "s2" }] },
